@@ -4,22 +4,31 @@
 
 #include <iostream>
 #include <fstream>
-#include <cstdint>
 #include <map>
 
 enum class INSTRUCTION_MASKS : uint16_t
 {
-  OP_CODE = 0xFC00,
-  W = 0x0200,
-  D = 0x0100,
-  MOD = 0x0060,
-  REG = 0x001C,
-  REG_MEM = 0x0007
+  OP_CODE = 0x00FC,
+  W = 0x0001,
+  D = 0x0002,
+  MOD = 0xC000,
+  REG = 0x3800,
+  REG_MEM = 0x0700
 };
 
 enum class OP_CODE_VALUES : uint8_t
 {
-  MOV = 0xD8
+  MOV = 0x22
+};
+
+std::map<INSTRUCTION_MASKS,int> shiftRight{
+    {INSTRUCTION_MASKS::OP_CODE,2},
+    {INSTRUCTION_MASKS::W,0},
+    {INSTRUCTION_MASKS::D,1},
+    {INSTRUCTION_MASKS::MOD,14},
+    {INSTRUCTION_MASKS::REG,11},
+    {INSTRUCTION_MASKS::REG_MEM,8},
+
 };
 
 std::string OpCodeToString(OP_CODE_VALUES opCode)
@@ -33,18 +42,32 @@ std::string OpCodeToString(OP_CODE_VALUES opCode)
 
 }
 
-
 void processInstruction(uint16_t instruction)
 {
+  auto fetchingFunc = [&instruction](auto dataMask)
+      {
+        uint16_t fetchedData = instruction & static_cast<uint16_t>(dataMask);
+        fetchedData >>= shiftRight[dataMask];
+        return fetchedData;
+      };
+
   //Fetching OP CODE
-  uint16_t opCode = instruction & static_cast<uint16_t>(INSTRUCTION_MASKS::OP_CODE);
-  opCode >>= 8;
+  uint16_t opCode = fetchingFunc(INSTRUCTION_MASKS::OP_CODE);
 
   // Fetching W
-  // Fetching D
-  // Fetching Reg
-  // Fetching REG_MEM
+  uint16_t wValue = fetchingFunc(INSTRUCTION_MASKS::W);
 
+  // Fetching D
+  uint16_t dValue = fetchingFunc(INSTRUCTION_MASKS::D);
+
+  //Fetching Mode
+  uint16_t mod = fetchingFunc(INSTRUCTION_MASKS::MOD);
+
+  // Fetching Reg
+  uint16_t regValue = fetchingFunc(INSTRUCTION_MASKS::REG);
+
+  // Fetching REG_MEM
+  uint16_t regMemValue = fetchingFunc(INSTRUCTION_MASKS::REG_MEM);
 
   std::cout << OpCodeToString(static_cast<OP_CODE_VALUES>(opCode));
 }
