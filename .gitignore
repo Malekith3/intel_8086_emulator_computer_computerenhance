@@ -1,1 +1,26 @@
-/cmake-build-debug/
+# Ignore build artifacts
+build/
+cmake-build-*/
+
+# Ignore Makefiles
+Makefile
+
+# Ignore CLion project files
+.idea/
+
+# Ignore compiled binaries and libraries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Ignore generated files
+*.o
+*.a
+*.obj
+*.pdb
+*.class
+
+# Ignore dependency directories
+bin/
+lib/

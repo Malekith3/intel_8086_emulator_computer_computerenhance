@@ -1,10 +1,9 @@
-//
-// Created by sanek on 15/07/2024.
-//
-
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <array>
+#include <fstream>
+#include <sstream>
 
 enum class INSTRUCTION_MASKS : uint16_t
 {
@@ -31,6 +30,38 @@ std::map<INSTRUCTION_MASKS,int> shiftRight{
 
 };
 
+enum class register_names: uint8_t
+{
+  al = 0x00,
+  cl = 0x01,
+  dl = 0x02,
+  bl = 0x03,
+  ah = 0x04,
+  ch = 0x05,
+  dh = 0x06,
+  bh = 0x07
+};
+
+enum class register_names_extended: uint8_t
+{
+  ax = 0x00,
+  cx = 0x01,
+  dx = 0x02,
+  bx = 0x03,
+  sp = 0x04,
+  bp = 0x05,
+  si = 0x06,
+  di = 0x07
+};
+
+std::array<std::string, 8> regNamesToStr{
+    "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"
+};
+
+std::array<std::string, 8> regNamesExtendedToStr{
+    "ax", "cx", "dx", "bx", "sp", "bp", "si", "di"
+};
+
 std::string OpCodeToString(OP_CODE_VALUES opCode)
 {
   static const std::map<OP_CODE_VALUES, std::string> opCodesToString{
@@ -42,7 +73,7 @@ std::string OpCodeToString(OP_CODE_VALUES opCode)
 
 }
 
-void processInstruction(uint16_t instruction)
+std::string processInstruction(uint16_t instruction)
 {
   auto fetchingFunc = [&instruction](auto dataMask)
       {
@@ -69,12 +100,50 @@ void processInstruction(uint16_t instruction)
   // Fetching REG_MEM
   uint16_t regMemValue = fetchingFunc(INSTRUCTION_MASKS::REG_MEM);
 
-  std::cout << OpCodeToString(static_cast<OP_CODE_VALUES>(opCode));
+  if(mod != 0b11)
+  {
+    std::cerr << "Dont support mod that is not 0b11";
+  }
+  std::stringstream ss;
+  auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+
+  auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
+
+  ss << OpCodeToString(static_cast<OP_CODE_VALUES>(opCode)) << " " << regMemValueString  << "," << " " << regString << std::endl;
+  return ss.str();
+}
+
+bool isFileEmpty(const std::string& filePath) {
+  std::ifstream file(filePath, std::ios::binary | std::ios::ate); // Open the file in binary mode and move to the end
+  if (!file.is_open()) {
+    return true; // If the file cannot be opened, assume it's empty
+  }
+  return file.tellg() == 0; // Check if the file size is 0
+}
+
+void WriteInstructionToAnFile(std::string_view instruction)
+{
+  bool fileEmpty = isFileEmpty("../asm_files/output.asm");
+  std::ofstream outFile("../asm_files/output.asm", std::ios::app);
+
+  if (!outFile.is_open())
+  {
+    std::cerr << "Failed to open file for writing." << std::endl;
+    return;
+  }
+
+  if(fileEmpty)
+  {
+    outFile << "bits 16" << std::endl;
+    outFile << std::endl;
+  }
+
+  outFile << instruction;
 }
 
 int main()
 {
-  std::ifstream  instructions("../asm_files/listing_0037_single_register_mov", std::ios::binary);
+  std::ifstream  instructions("../asm_files/listing_0038_many_register_mov", std::ios::binary);
 
   if(!instructions)
   {
@@ -87,10 +156,8 @@ int main()
 
   // Read two bytes at a time
   while (instructions.read(reinterpret_cast<char*>(&buffer), sizeof(buffer))) {
-    // Process the two bytes (buffer) as needed
-    // For example, you can print the value in hexadecimal
-    std::cout << std::hex << buffer << std::endl;
-    processInstruction(buffer);
+    std::string instructionString = processInstruction(buffer);
+    WriteInstructionToAnFile(instructionString);
   }
 
   return 0;
