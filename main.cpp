@@ -4,29 +4,40 @@
 #include <array>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
+#include <functional>
 
-enum class INSTRUCTION_MASKS : uint16_t
+enum class INSTRUCTION_MASKS : uint8_t
 {
-  OP_CODE = 0x00FC,
-  W = 0x0001,
-  D = 0x0002,
-  MOD = 0xC000,
-  REG = 0x3800,
-  REG_MEM = 0x0700
+  OPCODE_6BITES = 0b11111100,
+  W_6BITES = 0x01,
+  W_4BITES = 0b00001000,
+  D = 0x02,
+  MOD = 0b11000000,
+  REG_6BITES_OP_CODE = 0b00111000,
+  REG_4BITES_OP_CODE = 0b00000111,
+  REG_MEM = 0b000000111,
+  OPCODE_4BITES = 0b11110000,
+  OPCODE_5BITES = 0b11111000
 };
 
 enum class OP_CODE_VALUES : uint8_t
 {
-  MOV = 0x22
+  MOV_REG_MEM = 0b00100010,
+  MOV_IMMEDIATE = 0b00001011
 };
 
 std::map<INSTRUCTION_MASKS,int> shiftRight{
-    {INSTRUCTION_MASKS::OP_CODE,2},
-    {INSTRUCTION_MASKS::W,0},
-    {INSTRUCTION_MASKS::D,1},
-    {INSTRUCTION_MASKS::MOD,14},
-    {INSTRUCTION_MASKS::REG,11},
-    {INSTRUCTION_MASKS::REG_MEM,8},
+    {INSTRUCTION_MASKS::OPCODE_6BITES,     2},
+    {INSTRUCTION_MASKS::W_6BITES,          0},
+    {INSTRUCTION_MASKS::W_4BITES,          3},
+    {INSTRUCTION_MASKS::D,                 1},
+    {INSTRUCTION_MASKS::MOD,               6},
+    {INSTRUCTION_MASKS::REG_6BITES_OP_CODE,3},
+    {INSTRUCTION_MASKS::REG_4BITES_OP_CODE,0},
+    {INSTRUCTION_MASKS::REG_MEM,           0},
+    {INSTRUCTION_MASKS::OPCODE_4BITES,     4},
+    {INSTRUCTION_MASKS::OPCODE_5BITES,     5}
 
 };
 
@@ -65,7 +76,8 @@ std::array<std::string, 8> regNamesExtendedToStr{
 std::string OpCodeToString(OP_CODE_VALUES opCode)
 {
   static const std::map<OP_CODE_VALUES, std::string> opCodesToString{
-      {OP_CODE_VALUES::MOV, "mov"}
+      {OP_CODE_VALUES::MOV_REG_MEM, "mov"},
+      {OP_CODE_VALUES::MOV_IMMEDIATE, "mov"}
   };
 
   auto it = opCodesToString.find(opCode);
@@ -73,44 +85,90 @@ std::string OpCodeToString(OP_CODE_VALUES opCode)
 
 }
 
-std::string processInstruction(uint16_t instruction)
+
+auto fetchingFunc = [](auto dataMask,auto buffer8Bit)
 {
-  auto fetchingFunc = [&instruction](auto dataMask)
-      {
-        uint16_t fetchedData = instruction & static_cast<uint16_t>(dataMask);
-        fetchedData >>= shiftRight[dataMask];
-        return fetchedData;
-      };
+    uint8_t fetchedData = buffer8Bit & static_cast<uint8_t>(dataMask);
+    fetchedData >>= shiftRight[dataMask];
+    return fetchedData;
+};
 
-  //Fetching OP CODE
-  uint16_t opCode = fetchingFunc(INSTRUCTION_MASKS::OP_CODE);
 
-  // Fetching W
-  uint16_t wValue = fetchingFunc(INSTRUCTION_MASKS::W);
+std::string handleMovRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
+{
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+    
+    // Fetching W
+    uint16_t wValue = fetchingFunc(INSTRUCTION_MASKS::W_6BITES,buffer[0]);
+    
+//    // Fetching D
+//    uint16_t dValue = fetchingFunc(INSTRUCTION_MASKS::D, buffer[0]);
+    
+    //Fetching Mode
+    uint16_t mod = fetchingFunc(INSTRUCTION_MASKS::MOD, buffer[1]);
+    
+    // Fetching Reg
+    uint16_t regValue = fetchingFunc(INSTRUCTION_MASKS::REG_6BITES_OP_CODE, buffer[1]);
+    
+    // Fetching REG_MEM
+    uint16_t regMemValue = fetchingFunc(INSTRUCTION_MASKS::REG_MEM, buffer[1]);
+    
+    if(mod != 0b11)
+    {
+        std::cerr << "Dont support mod that is not 0b11";
+    }
+    std::stringstream ss;
+    auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+    
+    auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
+    
+    ss << OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM) << " " << regMemValueString  << "," << " " << regString << std::endl;
+    return ss.str();
+    
+}
 
-  // Fetching D
-  uint16_t dValue = fetchingFunc(INSTRUCTION_MASKS::D);
+std::unordered_map<OP_CODE_VALUES,std::function<std::string(std::array<uint8_t, 6>&,std::ifstream&)>> opCodesToFunc = {
+        {OP_CODE_VALUES::MOV_REG_MEM, handleMovRegMemInstruction}
+};
 
-  //Fetching Mode
-  uint16_t mod = fetchingFunc(INSTRUCTION_MASKS::MOD);
-
-  // Fetching Reg
-  uint16_t regValue = fetchingFunc(INSTRUCTION_MASKS::REG);
-
-  // Fetching REG_MEM
-  uint16_t regMemValue = fetchingFunc(INSTRUCTION_MASKS::REG_MEM);
-
-  if(mod != 0b11)
-  {
-    std::cerr << "Dont support mod that is not 0b11";
-  }
-  std::stringstream ss;
-  auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
-
-  auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
-
-  ss << OpCodeToString(static_cast<OP_CODE_VALUES>(opCode)) << " " << regMemValueString  << "," << " " << regString << std::endl;
-  return ss.str();
+std::string processInstruction(std::ifstream& bytesStream)
+{
+    
+    std::array<uint8_t,6> fullInstructionBuffer{};
+    // Buffer to hold the two bytes read from the file
+    bytesStream.read(reinterpret_cast<char*>(&fullInstructionBuffer[0]), sizeof(fullInstructionBuffer[0]));
+    
+    auto getStringFromInstruction = [&fullInstructionBuffer,&bytesStream](auto opcodeMask){
+        
+        uint8_t opcode = fetchingFunc(opcodeMask,fullInstructionBuffer[0]);
+        auto opcodeEnum = static_cast<OP_CODE_VALUES>(opcode);
+        if(auto function = opCodesToFunc.find(opcodeEnum); function != opCodesToFunc.end())
+        {
+            return function->second(fullInstructionBuffer,bytesStream);
+        }
+        return std::string();
+    };
+    
+    
+    // check 4bit opcodes
+    std::string result = getStringFromInstruction(INSTRUCTION_MASKS::OPCODE_4BITES);
+    // check 5bit opcodes
+    if(result.empty())
+    {
+        result = getStringFromInstruction(INSTRUCTION_MASKS::OPCODE_5BITES);
+    }
+    else
+    {
+        return result;
+    }
+    
+    // check 6bit opcodes
+    if(result.empty())
+    {
+        result = getStringFromInstruction(INSTRUCTION_MASKS::OPCODE_6BITES);
+    }
+    
+    return result;
 }
 
 bool isFileEmpty(const std::string& filePath) {
@@ -150,14 +208,12 @@ int main()
     std::cerr << "Got error on opening a file!" << std::endl;
     return -1;
   }
-
-  // Buffer to hold the two bytes read from the file
-  uint16_t buffer;
-
+  
   // Read two bytes at a time
-  while (instructions.read(reinterpret_cast<char*>(&buffer), sizeof(buffer))) {
-    std::string instructionString = processInstruction(buffer);
-    WriteInstructionToAnFile(instructionString);
+  while (!instructions.eof()) {
+    std::string instructionStr = processInstruction(instructions);
+      ///Decide if you need to fetch more.
+    WriteInstructionToAnFile(instructionStr);
   }
 
   return 0;

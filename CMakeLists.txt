@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.26)
 project(Computer_Enhance_follow_up)
 
 set(CMAKE_CXX_STANDARD 17)
