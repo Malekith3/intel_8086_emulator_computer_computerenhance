@@ -24,3 +24,7 @@ Makefile
 # Ignore dependency directories
 bin/
 lib/
+asm_files/*
+
+#But do not ihbnore asm file with prefix listing_
+!asm_files/listing_*.asm

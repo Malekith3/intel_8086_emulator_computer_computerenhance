@@ -18,7 +18,8 @@ enum class INSTRUCTION_MASKS : uint8_t
   REG_4BITES_OP_CODE = 0b00000111,
   REG_MEM = 0b000000111,
   OPCODE_4BITES = 0b11110000,
-  OPCODE_5BITES = 0b11111000
+  OPCODE_5BITES = 0b11111000,
+  DATA = 0b11111111
 };
 
 enum class OP_CODE_VALUES : uint8_t
@@ -37,7 +38,8 @@ std::map<INSTRUCTION_MASKS,int> shiftRight{
     {INSTRUCTION_MASKS::REG_4BITES_OP_CODE,0},
     {INSTRUCTION_MASKS::REG_MEM,           0},
     {INSTRUCTION_MASKS::OPCODE_4BITES,     4},
-    {INSTRUCTION_MASKS::OPCODE_5BITES,     5}
+    {INSTRUCTION_MASKS::OPCODE_5BITES,     5},
+    {INSTRUCTION_MASKS::DATA,              0}
 
 };
 
@@ -73,6 +75,10 @@ std::array<std::string, 8> regNamesExtendedToStr{
     "ax", "cx", "dx", "bx", "sp", "bp", "si", "di"
 };
 
+std::array<std::string, 8> regNamesPlus{
+    "bx + si", "bx + di", "bp + si", "bp + di", "si", "di", "bp", "bx"
+};
+
 std::string OpCodeToString(OP_CODE_VALUES opCode)
 {
   static const std::map<OP_CODE_VALUES, std::string> opCodesToString{
@@ -101,8 +107,8 @@ std::string handleMovRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifst
     // Fetching W
     uint16_t wValue = fetchingFunc(INSTRUCTION_MASKS::W_6BITES,buffer[0]);
     
-//    // Fetching D
-//    uint16_t dValue = fetchingFunc(INSTRUCTION_MASKS::D, buffer[0]);
+    // Fetching D
+    uint16_t dValue = fetchingFunc(INSTRUCTION_MASKS::D, buffer[0]);
     
     //Fetching Mode
     uint16_t mod = fetchingFunc(INSTRUCTION_MASKS::MOD, buffer[1]);
@@ -112,23 +118,118 @@ std::string handleMovRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifst
     
     // Fetching REG_MEM
     uint16_t regMemValue = fetchingFunc(INSTRUCTION_MASKS::REG_MEM, buffer[1]);
-    
-    if(mod != 0b11)
-    {
-        std::cerr << "Dont support mod that is not 0b11";
-    }
     std::stringstream ss;
-    auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+    if(mod == 0b11)
+    {
+        
+        auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+        
+        auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
+        
+        ss << OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM) << " " << regMemValueString  << "," << " " << regString << std::endl;
+        return ss.str();
+    }
+    else if (mod == 0b01)
+    {
+        auto regMemValueString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+        auto calculationAddress = regNamesPlus[regMemValue];
+        
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+        uint8_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        
+        std::stringstream displacementValue;
+        if(data != 0u)
+        {
+            displacementValue << "[" << calculationAddress << " + " << std::to_string(data) << "]";
+        }
+        else
+        {
+            displacementValue << "[" << calculationAddress << "]";
+        }
+        
+        ss << OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM) << " "
+           << ((dValue == 1u) ? regMemValueString : displacementValue.str())  << ", "
+           << ((dValue == 1u) ? displacementValue.str() : regMemValueString)  << std::endl;;
+        
+        return ss.str();
+    }
+    else if(mod == 0b00)
+    {
+        
+        auto regMemValueString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+        auto calculationAddress = regNamesPlus[regMemValue];
+        std::string displacementValue = "[" + calculationAddress + "]";
+        ss << OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM) << " "
+           << ((dValue == 1u) ? regMemValueString: displacementValue) << ", "
+           << ((dValue == 1u) ? displacementValue: regMemValueString) << std::endl;
+        
+        return ss.str();
+    }
+    else if(mod == 0b10)
+    {
+        auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
+        auto calculationAddress = regNamesPlus[regMemValue];
+        
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+        bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+        uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        uint16_t dataHigh = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+        dataHigh <<= 8;
+        data ^= dataHigh;
+        
+        
+        std::stringstream displacementValue;
+        if(data != 0u)
+        {
+            displacementValue << "[" << calculationAddress << " + " << std::to_string(data) << "]";
+        }
+        else
+        {
+            displacementValue << "[" << calculationAddress << "]";
+        }
+        
+        ss << OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM) << " "
+           << ((dValue == 1u)? regMemValueString : displacementValue.str())  << ","
+           << ((dValue == 1u) ? displacementValue.str() : regMemValueString) << std::endl;;
+        
+        
+        return ss.str();
+    }
     
-    auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
-    
-    ss << OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM) << " " << regMemValueString  << "," << " " << regString << std::endl;
-    return ss.str();
+    return "";
+
     
 }
 
+std::string handleImmediateToRegister(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
+{
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+    
+    
+    uint8_t wValue = fetchingFunc(INSTRUCTION_MASKS::W_4BITES,buffer[0]);
+    if(wValue == 1u)
+    {
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+    }
+    uint8_t regValue = fetchingFunc(INSTRUCTION_MASKS::REG_4BITES_OP_CODE, buffer[0]);
+    uint16_t  data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[1]);
+    if(wValue == 1u)
+    {
+        uint16_t highBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        highBitData <<=8;
+        data ^= highBitData;
+    }
+    
+    auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+    auto valueString = std::to_string(data);
+    std::stringstream ss;
+    ss << OpCodeToString(OP_CODE_VALUES::MOV_IMMEDIATE) << " " << regString  << "," << " " << valueString << std::endl;
+    return ss.str();
+}
+
 std::unordered_map<OP_CODE_VALUES,std::function<std::string(std::array<uint8_t, 6>&,std::ifstream&)>> opCodesToFunc = {
-        {OP_CODE_VALUES::MOV_REG_MEM, handleMovRegMemInstruction}
+        {OP_CODE_VALUES::MOV_REG_MEM, handleMovRegMemInstruction},
+        {OP_CODE_VALUES::MOV_IMMEDIATE, handleImmediateToRegister}
 };
 
 std::string processInstruction(std::ifstream& bytesStream)
@@ -201,7 +302,7 @@ void WriteInstructionToAnFile(std::string_view instruction)
 
 int main()
 {
-  std::ifstream  instructions("../asm_files/listing_0038_many_register_mov", std::ios::binary);
+  std::ifstream  instructions("../asm_files/more_movs", std::ios::binary);
 
   if(!instructions)
   {
