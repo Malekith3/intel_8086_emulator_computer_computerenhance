@@ -31,7 +31,12 @@ enum class OP_CODE_VALUES : uint8_t
     MOV_REG_MEM = 0b00100010,
     MOV_IMMEDIATE = 0b00001011,
     ADD_REG_MEM = 0b00000000,
-    ADD_IMMEDIATE = 0b00000010
+    ADD_IMMEDIATE_ACCUMULATOR = 0b0000010,
+    OP_LOGIC_IMMEDIATE_REG_MEM = 0b100000,
+    SUB_REG_MEM = 0b001010,
+    SUB_IMMEDIATE_ACCUMULATOR = 0b0010110,
+    CMP_REG_MEM = 0b001110,
+    CMP_IMMEDIATE_ACCUMULATOR = 0b0011110
 };
 
 static std::set<uint8_t > opcodes4Bit {
@@ -43,11 +48,16 @@ static std::set<uint8_t> opcodes5Bit {
 
 static std::set<uint8_t> opcodes6Bit {
         static_cast<uint8_t>(OP_CODE_VALUES::MOV_REG_MEM),
-        static_cast<uint8_t>(OP_CODE_VALUES::ADD_REG_MEM)
+        static_cast<uint8_t>(OP_CODE_VALUES::ADD_REG_MEM),
+        static_cast<uint8_t>(OP_CODE_VALUES::OP_LOGIC_IMMEDIATE_REG_MEM),
+        static_cast<uint8_t>(OP_CODE_VALUES::SUB_REG_MEM),
+        static_cast<uint8_t>(OP_CODE_VALUES::CMP_REG_MEM),
 };
 
 static std::set<uint8_t> opcodes7Bit {
-        static_cast<uint8_t>(OP_CODE_VALUES::ADD_IMMEDIATE)
+        static_cast<uint8_t>(OP_CODE_VALUES::ADD_IMMEDIATE_ACCUMULATOR),
+        static_cast<uint8_t>(OP_CODE_VALUES::SUB_IMMEDIATE_ACCUMULATOR),
+        static_cast<uint8_t>(OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR)
 };
 
 
@@ -109,7 +119,16 @@ inline std::string OpCodeToString(OP_CODE_VALUES opCode)
             {OP_CODE_VALUES::MOV_REG_MEM,   "mov"},
             {OP_CODE_VALUES::MOV_IMMEDIATE, "mov"},
             {OP_CODE_VALUES::ADD_REG_MEM,   "add"},
-            {OP_CODE_VALUES::ADD_IMMEDIATE, "add"}
+            {OP_CODE_VALUES::ADD_IMMEDIATE_ACCUMULATOR, "add"},
+            {OP_CODE_VALUES::OP_LOGIC_IMMEDIATE_REG_MEM, "add"},
+            {OP_CODE_VALUES::SUB_REG_MEM,"sub"},
+            {OP_CODE_VALUES::SUB_IMMEDIATE_ACCUMULATOR, "sub"},
+            {OP_CODE_VALUES::CMP_REG_MEM, "cmp"},
+            {OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR, "cmp"}
+    };
+    
+    std::unordered_map<uint8_t, std::string> jumpOpCodeToStrMap = {
+            {}
     };
     
     auto it = opCodesToString.find(opCode);

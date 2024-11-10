@@ -145,6 +145,138 @@ std::string handleImmediateToRegister(std::array<uint8_t, 6>& buffer, std::ifstr
     return ss.str();
 }
 
+std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, const std::string& instructionType)
+{
+    auto [wValue,sValue,mod,regValue,regMemValue] = fetchingRegMemData(buffer);
+    
+    std::stringstream ss;
+    
+    if(mod == 0b11)
+    {
+        auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+        uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        
+        ss << instructionType << " " << regMemValueString  << "," << " " << data << std::endl;
+        return ss.str();
+    }
+    else if (mod == 0b01)
+    {
+        auto regMemValueString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+        auto calculationAddress = regNamesPlus[regMemValue];
+        
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+        uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        
+        if(sValue == 0 && wValue == 1)
+        {
+            bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+            uint8_t lowBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+            data <<= 8;
+            data ^= lowBitData;
+        }
+        
+        std::stringstream displacementValue;
+        if(data != 0u)
+        {
+            displacementValue << "[" << calculationAddress << " + " << std::to_string(data) << "]";
+        }
+        else
+        {
+            displacementValue << "[" << calculationAddress << "]";
+        }
+        
+        ss << instructionType << " " << ((sValue == 1u) ? regMemValueString : displacementValue.str()) << ", "
+           << std::to_string(data);
+        
+        return ss.str();
+    }
+    else if(mod == 0b00)
+    {
+        
+        auto calculationAddress = regNamesPlus[regMemValue];
+        
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+        uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        if(sValue == 0 && wValue == 1)
+        {
+            bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+            uint16_t lowBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+            lowBitData <<= 8;
+            data ^= lowBitData;
+        }
+        
+        
+        ss << instructionType << " " << calculationAddress << ", " << std::to_string(data) << std::endl;
+        
+        return ss.str();
+    }
+    else if(mod == 0b10)
+    {
+        auto calculationAddress = regNamesPlus[regMemValue];
+        
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+        bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+        uint16_t dataDisp = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        uint16_t dataHigh = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+        dataHigh <<= 8;
+        dataDisp ^= dataHigh;
+        
+        bytesStream.read(reinterpret_cast<char*>(&buffer[4]), sizeof(buffer[4]));
+        uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[4]);
+        if(sValue == 0 && wValue == 1)
+        {
+            bytesStream.read(reinterpret_cast<char*>(&buffer[5]), sizeof(buffer[5]));
+            uint8_t lowBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[5]);
+            data <<= 8;
+            data ^= lowBitData;
+        }
+        
+        
+        
+        std::stringstream displacementValue;
+        if(dataDisp != 0u)
+        {
+            displacementValue << "[" << calculationAddress << " + " << std::to_string(dataDisp) << "]";
+        }
+        else
+        {
+            displacementValue << "[" << calculationAddress << "]";
+        }
+        
+        ss << instructionType << " "
+           << displacementValue.str() << ","
+           << std::to_string(data) << std::endl;
+        
+        return ss.str();
+    }
+    
+    return "";
+}
+
+std::string handleImmediateToAccOpLogic(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, const std::string& instructionType)
+{
+    auto wValue = fetchingFunc(INSTRUCTION_MASKS::W_6BITES, buffer[0]);
+    uint16_t data = buffer[1];
+    
+    std::stringstream instructionString;
+    instructionString << instructionType << " ";
+    if(wValue == 1)
+    {
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+        uint16_t lowBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        lowBitData <<= 8;
+        data ^= lowBitData;
+        instructionString << "ax, " << data << std::endl;
+    }
+    else
+    {
+        instructionString << "al, " << data << std::endl;
+    }
+    
+    return instructionString.str();
+}
+
 std::string handleMovImmediateToRegister(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
 {
     bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
@@ -158,8 +290,47 @@ std::string handleAddRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifst
     return handleRegMemModValues(fetchedValues,OpCodeToString(OP_CODE_VALUES::ADD_REG_MEM),bytesStream, buffer);
 }
 
-std::string handleAddImmediateToRegister(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
+std::string handleAddImmediateToAccumulator(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
 {
     bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
-    return handleImmediateToRegister(buffer,bytesStream, OpCodeToString(OP_CODE_VALUES::ADD_IMMEDIATE));
+    return handleImmediateToAccOpLogic(buffer,bytesStream, OpCodeToString(OP_CODE_VALUES::ADD_IMMEDIATE_ACCUMULATOR));
+}
+
+std::string handleOpLogicImmediateToRegMem(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream)
+{
+    static std::map<uint8_t, std::string> opTypesToStr = {
+            {0b000, "add"},
+            {0b101, "sub"},
+            {0b111, "cmp"}
+    };
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+    auto opType = fetchingFunc(INSTRUCTION_MASKS::REG_6BITES_OP_CODE, buffer[1]);
+    
+    return handleImmediateToRegisterLogicOp(buffer, bytesStream, opTypesToStr[opType]);
+}
+
+std::string handleSubImmediateToAccumulator(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream)
+{
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+    return handleImmediateToAccOpLogic(buffer,bytesStream, OpCodeToString(OP_CODE_VALUES::SUB_IMMEDIATE_ACCUMULATOR));
+}
+
+std::string handleSubRegMemInstruction(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream)
+{
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+    auto fetchedValues = fetchingRegMemData(buffer);
+    return handleRegMemModValues(fetchedValues,OpCodeToString(OP_CODE_VALUES::SUB_REG_MEM),bytesStream, buffer);
+}
+
+std::string handleCmpImmediateToAccumulator(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream)
+{
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+    return handleImmediateToAccOpLogic(buffer,bytesStream, OpCodeToString(OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR));
+}
+
+std::string handleCmpRegMemInstruction(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream)
+{
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+    auto fetchedValues = fetchingRegMemData(buffer);
+    return handleRegMemModValues(fetchedValues,OpCodeToString(OP_CODE_VALUES::CMP_REG_MEM),bytesStream, buffer);
 }

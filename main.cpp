@@ -24,10 +24,13 @@ std::string processInstruction(std::ifstream& bytesStream)
         return std::string();
     };
     
+    std::string result;
+    // test for jumps
+    auto opcode = fetchingFunc(INSTRUCTION_MASKS::OPCODE_8BITES,fullInstructionBuffer[0]);
+    
     
     // check 4bit opcodes
-    std::string result;
-    uint8_t opcode = fetchingFunc(INSTRUCTION_MASKS::OPCODE_4BITES,fullInstructionBuffer[0]);
+    opcode = fetchingFunc(INSTRUCTION_MASKS::OPCODE_4BITES,fullInstructionBuffer[0]);
     if(opcodes4Bit.find(opcode) != opcodes4Bit.end())
     {
         result = getStringFromInstruction(opcode);
