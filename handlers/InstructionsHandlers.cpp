@@ -334,3 +334,11 @@ std::string handleCmpRegMemInstruction(std::array<uint8_t, 6> &buffer, std::ifst
     auto fetchedValues = fetchingRegMemData(buffer);
     return handleRegMemModValues(fetchedValues,OpCodeToString(OP_CODE_VALUES::CMP_REG_MEM),bytesStream, buffer);
 }
+
+std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, std::string& jumpString) {
+  bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+  std::stringstream instructionString;
+
+  instructionString << jumpString << " " << std::to_string(buffer[1]) << std::endl;
+  return instructionString.str();
+}

@@ -32,6 +32,8 @@ std::string handleCmpImmediateToAccumulator(std::array<uint8_t, 6>& buffer, std:
 
 std::string handleCmpRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream);
 
+std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, std::string& jumpString);
+
 
 static std::unordered_map<OP_CODE_VALUES,std::function<std::string(std::array<uint8_t, 6>&,std::ifstream&)>> opCodesToFunc = {
         {OP_CODE_VALUES::MOV_REG_MEM,                handleMovRegMemInstruction},

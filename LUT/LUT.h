@@ -127,12 +127,30 @@ inline std::string OpCodeToString(OP_CODE_VALUES opCode)
             {OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR, "cmp"}
     };
     
-    std::unordered_map<uint8_t, std::string> jumpOpCodeToStrMap = {
-            {}
-    };
-    
     auto it = opCodesToString.find(opCode);
     return (it != opCodesToString.end()) ? it->second : "";
 }
+
+static std::unordered_map<uint8_t, std::string> jumpOpCodeToStrMap = {
+
+    {0b11100011, "jcxz"},       // Jump if CX register is zero
+    // Conditional Jumps
+    {0b01110000, "jo"},         // Jump if overflow
+    {0b01110001, "jno"},        // Jump if not overflow
+    {0b01110010, "jb"},         // Jump if below (unsigned)
+    {0b01110011, "jae"},        // Jump if above or equal (unsigned)
+    {0b01110100, "je"},         // Jump if equal (zero)
+    {0b01110101, "jne"},        // Jump if not equal (non-zero)
+    {0b01110110, "jbe"},        // Jump if below or equal (unsigned)
+    {0b01110111, "ja"},         // Jump if above (unsigned)
+    {0b01111000, "js"},         // Jump if sign (negative)
+    {0b01111001, "jns"},        // Jump if not sign (positive)
+    {0b01111010, "jp"},         // Jump if parity (even)
+    {0b01111011, "jpo"},        // Jump if parity odd
+    {0b01111100, "jl"},         // Jump if less (signed)
+    {0b01111101, "jge"},        // Jump if greater or equal (signed)
+    {0b01111110, "jle"},        // Jump if less or equal (signed)
+    {0b01111111, "jg"}          // Jump if greater (signed)
+};
 
 #endif //COMPUTER_ENHANCE_FOLLOW_UP_LUT_H

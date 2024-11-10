@@ -27,7 +27,10 @@ std::string processInstruction(std::ifstream& bytesStream)
     std::string result;
     // test for jumps
     auto opcode = fetchingFunc(INSTRUCTION_MASKS::OPCODE_8BITES,fullInstructionBuffer[0]);
-    
+    if(jumpOpCodeToStrMap.find(opcode) != jumpOpCodeToStrMap.end())
+    {
+       return handleJump(fullInstructionBuffer, bytesStream, jumpOpCodeToStrMap[opcode]);
+    }
     
     // check 4bit opcodes
     opcode = fetchingFunc(INSTRUCTION_MASKS::OPCODE_4BITES,fullInstructionBuffer[0]);
