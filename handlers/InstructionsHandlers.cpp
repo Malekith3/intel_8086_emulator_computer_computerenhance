@@ -56,7 +56,7 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         std::stringstream displacementValue;
         if(data != 0u)
         {
-            displacementValue << "[" << calculationAddress << " + " << std::to_string(data) << "]";
+            displacementValue << "[" << calculationAddress << " + " << std::to_string(static_cast<int16_t>(data)) << "]";
         }
         else
         {
@@ -97,7 +97,7 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         std::stringstream displacementValue;
         if(data != 0u)
         {
-            displacementValue << "[" << calculationAddress << " + " << std::to_string(data) << "]";
+            displacementValue << "[" << calculationAddress << " + " << std::to_string(static_cast<int16_t>(data)) << "]";
         }
         else
         {
@@ -139,7 +139,7 @@ std::string handleImmediateToRegister(std::array<uint8_t, 6>& buffer, std::ifstr
     }
     
     auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
-    auto valueString = std::to_string(data);
+    auto valueString = std::to_string(static_cast<int16_t>(data));
     std::stringstream ss;
     ss << instructionType << " " << regString  << "," << " " << valueString << std::endl;
     return ss.str();
@@ -155,9 +155,9 @@ std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6>& buffer, std
     {
         auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
         bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
-        uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        uint8_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
         
-        ss << instructionType << " " << regMemValueString  << "," << " " << data << std::endl;
+        ss << instructionType << " " << regMemValueString  << "," << " " << std::to_string(static_cast<int8_t>(data)) << std::endl;
         return ss.str();
     }
     else if (mod == 0b01)
@@ -179,7 +179,7 @@ std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6>& buffer, std
         std::stringstream displacementValue;
         if(data != 0u)
         {
-            displacementValue << "[" << calculationAddress << " + " << std::to_string(data) << "]";
+            displacementValue << "[" << calculationAddress << " + " << std::to_string(static_cast<int16_t>(data)) << "]";
         }
         else
         {
@@ -187,7 +187,7 @@ std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6>& buffer, std
         }
         
         ss << instructionType << " " << ((sValue == 1u) ? regMemValueString : displacementValue.str()) << ", "
-           << std::to_string(data);
+           << std::to_string(static_cast<int16_t>(data));
         
         return ss.str();
     }
@@ -207,7 +207,8 @@ std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6>& buffer, std
         }
         
         
-        ss << instructionType << " " << calculationAddress << ", " << std::to_string(data) << std::endl;
+        ss << instructionType << " " << calculationAddress << ", "
+           << ((sValue == 0 && wValue == 1) ? std::to_string(static_cast<int16_t>(data)) : std::to_string(static_cast<int8_t>(data))) << std::endl;
         
         return ss.str();
     }
@@ -237,7 +238,7 @@ std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6>& buffer, std
         std::stringstream displacementValue;
         if(dataDisp != 0u)
         {
-            displacementValue << "[" << calculationAddress << " + " << std::to_string(dataDisp) << "]";
+            displacementValue << "[" << calculationAddress << " + " << std::to_string(static_cast<int16_t>(dataDisp)) << "]";
         }
         else
         {
@@ -246,7 +247,7 @@ std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6>& buffer, std
         
         ss << instructionType << " "
            << displacementValue.str() << ","
-           << std::to_string(data) << std::endl;
+           << ((sValue == 0 && wValue == 1) ? std::to_string(static_cast<int16_t>(data)) : std::to_string(static_cast<int8_t>(data))) << std::endl;
         
         return ss.str();
     }
@@ -267,11 +268,11 @@ std::string handleImmediateToAccOpLogic(std::array<uint8_t, 6>& buffer, std::ifs
         uint16_t lowBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
         lowBitData <<= 8;
         data ^= lowBitData;
-        instructionString << "ax, " << data << std::endl;
+        instructionString << "ax, " << std::to_string(static_cast<int16_t>(data)) << std::endl;
     }
     else
     {
-        instructionString << "al, " << data << std::endl;
+        instructionString << "al, " << std::to_string(static_cast<int8_t>(data)) << std::endl;
     }
     
     return instructionString.str();
@@ -338,7 +339,7 @@ std::string handleCmpRegMemInstruction(std::array<uint8_t, 6> &buffer, std::ifst
 std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, std::string& jumpString) {
   bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
   std::stringstream instructionString;
-
-  instructionString << jumpString << " " << std::to_string(buffer[1]) << std::endl;
+  
+  instructionString << jumpString << " " << std::to_string(static_cast<int8_t>(buffer[1])) << std::endl;
   return instructionString.str();
 }
