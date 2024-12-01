@@ -1,10 +1,14 @@
 #include <iostream>
+#include <iomanip>
 #include "InstructionsHandlers.h"
+
+std::array<uint16_t, 8> registers{0};
 
 namespace
 {
     const std::string OUTPUT_FILE_PATH = "../asm_files/output.asm";
-    const std::string INPUT_FILE_PATH = "../asm_files/listing_0041_add_sub_cmp_jnz";
+    const std::string INPUT_FILE_PATH = "../asm_files/check";
+    const std::string ASM_HEADER = "bits 16";
 }
 
 std::string processInstruction(std::ifstream& bytesStream)
@@ -12,7 +16,10 @@ std::string processInstruction(std::ifstream& bytesStream)
     
     std::array<uint8_t,6> fullInstructionBuffer{};
     // Buffer to hold the two bytes read from the file
-    bytesStream.read(reinterpret_cast<char*>(&fullInstructionBuffer[0]), sizeof(fullInstructionBuffer[0]));
+    if(!bytesStream.read(reinterpret_cast<char*>(&fullInstructionBuffer[0]), sizeof(fullInstructionBuffer[0])))
+    {
+        return "";
+    };
     
     auto getStringFromInstruction = [&fullInstructionBuffer,&bytesStream](auto opcodeValue){
         
@@ -93,9 +100,31 @@ void WriteInstructionToAnFile(std::string_view instruction)
     return;
   }
   
+  if(instruction.empty())
+  {
+      return;
+  }
+  
   outFile << instruction;
   
   outFile.close();
+}
+
+
+void printRegisters()
+{
+    std::ostringstream outputStream;
+    auto index{0};
+    outputStream << "Final registers:" << "\n";
+    for(const auto& reg: registers)
+    {
+        std::ostringstream oss;
+        oss << "0x" << std::hex << std::setw(4) << std::setfill('0') << reg;
+        outputStream << "\t" << regNamesExtendedToStr[index] + ": " + oss.str() + "(" + std::to_string(reg) + ")" << std::endl;
+        index++;
+    }
+    
+    std::cout << outputStream.str();
 }
 
 int main()
@@ -109,16 +138,19 @@ int main()
   }
     
     std::ofstream outFile(OUTPUT_FILE_PATH, std::ios::out | std::ios::trunc);
-    outFile << "bits 16" << std::endl;
+    outFile << ASM_HEADER << std::endl;
     outFile << std::endl;
     outFile.close();
+    
+    std::cout << ASM_HEADER << "\n";
   
   while (!instructions.eof()) {
     std::string instructionStr = processInstruction(instructions);
-      ///Decide if you need to fetch more.
     WriteInstructionToAnFile(instructionStr);
   }
-
+  
+  printRegisters();
+  
   return 0;
 
 }

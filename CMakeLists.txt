@@ -10,4 +10,6 @@ add_executable(Computer_Enhance_follow_up
         main.cpp
         handlers/InstructionsHandlers.h
         LUT/LUT.h
-        handlers/InstructionsHandlers.cpp)
+        handlers/InstructionsHandlers.cpp
+        handlers/InstructionSimulatorHandler.h
+        handlers/InstructionSimulatorHandler.cpp)

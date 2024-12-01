@@ -12,6 +12,8 @@
 #include <functional>
 #include "LUT.h"
 
+extern std::array<uint16_t, 8> registers;
+
 uint8_t fetchingFunc(INSTRUCTION_MASKS dataMask,uint8_t buffer8Bit);
 
 std::string handleMovRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream);

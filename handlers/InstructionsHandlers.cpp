@@ -2,7 +2,33 @@
 // Created by bordeax on 10/30/24.
 //
 
+#include <iostream>
+#include <iomanip>
 #include "InstructionsHandlers.h"
+#include "InstructionSimulatorHandler.h"
+
+
+namespace
+{
+std::map<std::string, size_t> regNameToIndex{
+        {"ax", 0},
+        {"cx", 1},
+        {"dx", 2},
+        {"bx", 3},
+        {"sp", 4},
+        {"bp", 5},
+        {"si", 6},
+        {"di", 7},
+        {"al", 0},
+        {"cl", 1},
+        {"dl", 2},
+        {"bl", 3},
+        {"ah", 0},
+        {"ch", 1},
+        {"dh", 2},
+        {"bh", 3}
+};
+}
 
 uint8_t fetchingFunc(INSTRUCTION_MASKS dataMask,uint8_t buffer8Bit)
 {
@@ -31,7 +57,18 @@ std::array<uint16_t,5> fetchingRegMemData(std::array<uint8_t, 6>& buffer)
     return {wValue,dValue,mod,regValue,regMemValue};
 }
 
-std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const std::string& instructionString, std::ifstream& bytesStream, std::array<uint8_t, 6>& buffer)
+void printInstructionAndChange(const std::string& instructionStr,const std::string& regName, uint16_t oldValue, uint16_t newValue)
+{
+    std::ostringstream oss, ossNew;
+    oss << "0x" << std::hex << std::setw(4) << std::setfill('0') << oldValue;
+    ossNew << "0x" << std::hex  << std::setw(4) << std::setfill('0') << newValue;
+    
+    std::cout << instructionStr + "; " + regName + ":" + oss.str() + " ->" + ossNew.str() + "\n";
+}
+
+std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const std::string& instructionString,
+                                  std::ifstream& bytesStream, std::array<uint8_t, 6>& buffer,
+                                  std::function<void(uint16_t&, uint16_t, uint16_t)> execFunc = nullptr)
 {
     auto [wValue,dValue,mod,regValue,regMemValue] = prefetchedValues;
     std::stringstream ss;
@@ -41,8 +78,37 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
         
         auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
+        ss << instructionString << " " << regMemValueString  << "," << " " << regString;
         
-        ss << instructionString << " " << regMemValueString  << "," << " " << regString << std::endl;
+        if(execFunc)
+        {
+            uint16_t oldRegValue{registers[regNameToIndex[regMemValueString]]};
+            
+            if(wValue)
+            {
+                execFunc(registers[regMemValue], registers[regValue], 0x0000);
+            }
+            else
+            {
+                auto mask = (regMemValue > 3) ? 0xFF00 : 0x00FF;
+                
+                auto  regData = registers[regValue % 4];
+                if(regValue > 3)
+                {
+                    regData >>=8;
+                }
+                else
+                {
+                    regData &= 0x00FF;
+                }
+                
+                execFunc(registers[regMemValue % 4], regData, mask);
+            }
+            
+            printInstructionAndChange(ss.str(),regMemValueString,oldRegValue,registers[regNameToIndex[regMemValueString]]);
+        }
+        
+        ss << std::endl;
         return ss.str();
     }
     else if (mod == 0b01)
@@ -115,14 +181,9 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
     return "";
 }
 
-std::string handleMovRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
-{
-    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
-    auto fetchedValues = fetchingRegMemData(buffer);
-    return handleRegMemModValues(fetchedValues,OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM),bytesStream, buffer);
-}
-
-std::string handleImmediateToRegister(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, const std::string& instructionType)
+std::string handleImmediateToRegister(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream,
+                                      const std::string &instructionType,
+                                      std::function<void(uint16_t&, uint16_t, uint16_t)> execFunc = nullptr)
 {
     uint8_t wValue = fetchingFunc(INSTRUCTION_MASKS::W_4BITES,buffer[0]);
     if(wValue == 1u)
@@ -141,7 +202,26 @@ std::string handleImmediateToRegister(std::array<uint8_t, 6>& buffer, std::ifstr
     auto regString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
     auto valueString = std::to_string(static_cast<int16_t>(data));
     std::stringstream ss;
-    ss << instructionType << " " << regString  << "," << " " << valueString << std::endl;
+    ss << instructionType << " " << regString  << "," << " " << valueString;
+    
+    if(execFunc)
+    {
+        uint16_t oldRegValue{registers[regNameToIndex[regString]]};
+        
+        if(wValue)
+        {
+            
+            execFunc(registers[regValue], data, 0x0000);
+        }
+        else
+        {
+            auto mask = (regValue > 3) ? 0xFF00 : 0x00FF;
+            execFunc(registers[regValue % 4], data, mask);
+        }
+        
+        printInstructionAndChange(ss.str(),regString,oldRegValue,registers[regNameToIndex[regString]]);
+    }
+    ss << std::endl;
     return ss.str();
 }
 
@@ -278,10 +358,12 @@ std::string handleImmediateToAccOpLogic(std::array<uint8_t, 6>& buffer, std::ifs
     return instructionString.str();
 }
 
+/// Handlers functions
+
 std::string handleMovImmediateToRegister(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
 {
     bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
-    return handleImmediateToRegister(buffer,bytesStream, OpCodeToString(OP_CODE_VALUES::MOV_IMMEDIATE));
+    return handleImmediateToRegister(buffer, bytesStream, OpCodeToString(OP_CODE_VALUES::MOV_IMMEDIATE), MoveExecute);
 }
 
 std::string handleAddRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
@@ -342,4 +424,11 @@ std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStrea
   
   instructionString << jumpString << " " << std::to_string(static_cast<int8_t>(buffer[1])) << std::endl;
   return instructionString.str();
+}
+
+std::string handleMovRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream)
+{
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+    auto fetchedValues = fetchingRegMemData(buffer);
+    return handleRegMemModValues(fetchedValues,OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM),bytesStream, buffer, MoveExecute);
 }
