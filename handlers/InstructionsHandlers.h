@@ -10,6 +10,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <functional>
+#include <bitset>
 #include "LUT.h"
 
 extern std::array<uint16_t, 8> registers;

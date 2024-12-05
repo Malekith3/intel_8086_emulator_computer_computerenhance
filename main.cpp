@@ -1,13 +1,15 @@
 #include <iostream>
 #include <iomanip>
+#include <bitset>
 #include "InstructionsHandlers.h"
 
 std::array<uint16_t, 8> registers{0};
+std::bitset<2> flags;
 
 namespace
 {
     const std::string OUTPUT_FILE_PATH = "../asm_files/output.asm";
-    const std::string INPUT_FILE_PATH = "../asm_files/check";
+    const std::string INPUT_FILE_PATH = "../asm_files/listing_0046_add_sub_cmp";
     const std::string ASM_HEADER = "bits 16";
 }
 

@@ -5,8 +5,9 @@
 #ifndef COMPUTER_ENHANCE_FOLLOW_UP_LUT_H
 #define COMPUTER_ENHANCE_FOLLOW_UP_LUT_H
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <set>
+#include <map>
 
 enum class INSTRUCTION_MASKS : uint8_t
 {
@@ -151,6 +152,12 @@ static std::unordered_map<uint8_t, std::string> jumpOpCodeToStrMap = {
     {0b01111101, "jge"},        // Jump if greater or equal (signed)
     {0b01111110, "jle"},        // Jump if less or equal (signed)
     {0b01111111, "jg"}          // Jump if greater (signed)
+};
+
+enum FLAGS : uint8_t
+{
+    ZERO,
+    SIGN
 };
 
 #endif //COMPUTER_ENHANCE_FOLLOW_UP_LUT_H
