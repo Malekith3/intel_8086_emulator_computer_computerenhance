@@ -28,6 +28,7 @@ std::map<std::string, size_t> regNameToIndex{
         {"dh", 2},
         {"bh", 3}
 };
+
 }
 
 uint8_t fetchingFunc(INSTRUCTION_MASKS dataMask,uint8_t buffer8Bit)
@@ -57,9 +58,18 @@ std::array<uint16_t,5> fetchingRegMemData(std::array<uint8_t, 6>& buffer)
     return {wValue,dValue,mod,regValue,regMemValue};
 }
 
-void printInstructionAndChange(const std::string& instructionStr,const std::string& regName, uint16_t oldValue, uint16_t newValue)
+std::string getIPCountString(std::ifstream& bytestream)
 {
-    std::ostringstream oss, ossNew, flagsOSS;
+    std::ostringstream ipCountString;
+    ipCountString << " IP: " << "0x" << std::hex << prevIPCount << "->" << "0x" << std::hex << bytestream.tellg();
+    return ipCountString.str();
+}
+
+void printInstructionAndChange(const std::string &instructionStr, const std::string& regName, uint16_t oldValue,
+                               uint16_t newValue, std::ifstream& bytestream)
+{
+    std::ostringstream oss, ossNew, flagsOSS,ipCountString;
+    
     oss << "0x" << std::hex << std::setw(4) << std::setfill('0') << oldValue;
     ossNew << "0x" << std::hex  << std::setw(4) << std::setfill('0') << newValue;
     
@@ -77,7 +87,10 @@ void printInstructionAndChange(const std::string& instructionStr,const std::stri
         }
         
     }
-    std::cout << instructionStr + "; " + regName + ":" + oss.str() + " ->" + ossNew.str() + flagsOSS.str() + "\n";
+    
+    ipCountString << " IP: " << "0x" << std::hex << prevIPCount << "->" << "0x" << std::hex << bytestream.tellg();
+    
+    std::cout << instructionStr + "; " + regName + ":" + oss.str() + "->" + ossNew.str() + flagsOSS.str() + getIPCountString(bytestream) + "\n";
 }
 
 std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const std::string& instructionString,
@@ -118,8 +131,8 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
                 
                 execFunc(registers[regMemValue % 4], regData, mask);
             }
-            
-            printInstructionAndChange(ss.str(),regMemValueString,oldRegValue,registers[regNameToIndex[regMemValueString]]);
+            printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
+                                      registers[regNameToIndex[regMemValueString]], bytesStream);
         }
         
         ss << std::endl;
@@ -233,7 +246,8 @@ std::string handleImmediateToRegister(std::array<uint8_t, 6> &buffer, std::ifstr
             execFunc(registers[regValue % 4], data, mask);
         }
         
-        printInstructionAndChange(ss.str(),regString,oldRegValue,registers[regNameToIndex[regString]]);
+        printInstructionAndChange(ss.str(), regString, oldRegValue, registers[regNameToIndex[regString]],
+                                  bytesStream);
     }
     ss << std::endl;
     return ss.str();
@@ -288,7 +302,8 @@ std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6> &buffer, std
                 execFunc(registers[regMemValue % 4], regData, mask);
             }
             
-            printInstructionAndChange(ss.str(),regMemValueString,oldRegValue,registers[regNameToIndex[regMemValueString]]);
+            printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
+                                      registers[regNameToIndex[regMemValueString]], bytesStream);
         }
     }
     else if (mod == 0b01)
@@ -413,7 +428,8 @@ std::string handleImmediateToAccOpLogic(std::array<uint8_t, 6> &buffer, std::ifs
         uint16_t oldRegValue{registers[0]};
         auto mask = (wValue)? 0xFFFF : 0x00FF;
         execFunc(registers[0], data & mask, mask);
-        printInstructionAndChange(instructionString.str(),(wValue) ? "ax":"al",oldRegValue,registers[0]);
+        printInstructionAndChange(instructionString.str(), (wValue) ? "ax" : "al", oldRegValue, registers[0],
+                                  bytesStream);
     }
     
     return instructionString.str();
@@ -489,11 +505,18 @@ std::string handleCmpRegMemInstruction(std::array<uint8_t, 6> &buffer, std::ifst
     return handleRegMemModValues(fetchedValues,OpCodeToString(OP_CODE_VALUES::CMP_REG_MEM),bytesStream, buffer, CompExecute);
 }
 
-std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, std::string& jumpString) {
+std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, uint8_t jumpOpCode) {
   bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
-  std::stringstream instructionString;
   
-  instructionString << jumpString << " " << std::to_string(static_cast<int8_t>(buffer[1])) << std::endl;
+  std::stringstream instructionString;
+  instructionString << jumpOpCodeToStrMap[jumpOpCode] << " " << std::to_string(static_cast<int8_t>(buffer[1]));
+  
+  JumpExecute(bytesStream,static_cast<int8_t>(buffer[1]), jumpOpCode);
+  
+  auto ipCountString{getIPCountString(bytesStream)};
+  std::cout << instructionString.str() << ipCountString << "\n";
+  
+  instructionString << "\n";
   return instructionString.str();
 }
 

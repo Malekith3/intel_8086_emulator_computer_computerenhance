@@ -5,19 +5,20 @@
 
 std::array<uint16_t, 8> registers{0};
 std::bitset<2> flags;
+size_t prevIPCount{0U};
 
 namespace
 {
     const std::string OUTPUT_FILE_PATH = "../asm_files/output.asm";
-    const std::string INPUT_FILE_PATH = "../asm_files/listing_0046_add_sub_cmp";
+    const std::string INPUT_FILE_PATH = "../asm_files/listing_0049_conditional_jumps";
     const std::string ASM_HEADER = "bits 16";
 }
 
 std::string processInstruction(std::ifstream& bytesStream)
 {
-    
     std::array<uint8_t,6> fullInstructionBuffer{};
     // Buffer to hold the two bytes read from the file
+    prevIPCount = static_cast<size_t>(bytesStream.tellg());
     if(!bytesStream.read(reinterpret_cast<char*>(&fullInstructionBuffer[0]), sizeof(fullInstructionBuffer[0])))
     {
         return "";
@@ -38,7 +39,7 @@ std::string processInstruction(std::ifstream& bytesStream)
     auto opcode = fetchingFunc(INSTRUCTION_MASKS::OPCODE_8BITES,fullInstructionBuffer[0]);
     if(jumpOpCodeToStrMap.find(opcode) != jumpOpCodeToStrMap.end())
     {
-       return handleJump(fullInstructionBuffer, bytesStream, jumpOpCodeToStrMap[opcode]);
+       return handleJump(fullInstructionBuffer, bytesStream, opcode);
     }
     
     // check 4bit opcodes
@@ -111,7 +112,6 @@ void WriteInstructionToAnFile(std::string_view instruction)
   
   outFile.close();
 }
-
 
 void printRegisters()
 {

@@ -1,8 +1,11 @@
 //
 // Created by bordeax on 12/1/24.
 //
+#include <iostream>
+#include <fstream>
 #include "InstructionSimulatorHandler.h"
 #include "LUT.h"
+
 
 void zeroFlagTest(const uint16_t dest)
 {
@@ -69,5 +72,22 @@ void CompExecute(uint16_t &dest, uint16_t data, uint16_t lowHighBitmask)
     if(static_cast<uint16_t>(dest - data) != 0)
     {
         signFlagTest(0x8000);
+    }
+}
+
+void JumpExecute(std::ifstream& byteStream, int8_t displacement, uint8_t jumpType)
+{
+    switch (jumpType)
+    {
+        case 0b01110101: // jne or jnz
+            if(!flags.test(ZERO))
+            {
+                byteStream.seekg(displacement, std::ios::cur);
+            }
+            break;
+            
+        default:
+            std::cerr << "got unknown jump type" << "\n";
+             break;
     }
 }

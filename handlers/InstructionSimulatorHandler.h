@@ -19,4 +19,6 @@ void SubExecute(uint16_t &dest, uint16_t data, uint16_t lowHighBitmask);
 
 void CompExecute(uint16_t &dest, uint16_t data, uint16_t lowHighBitmask);
 
+void JumpExecute(std::ifstream& byteStream, int8_t displacement, uint8_t jumpType);
+
 #endif //COMPUTER_ENHANCE_FOLLOW_UP_INSTRUCTIONSIMULATORHANDLER_H

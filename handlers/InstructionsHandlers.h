@@ -14,6 +14,7 @@
 #include "LUT.h"
 
 extern std::array<uint16_t, 8> registers;
+extern size_t prevIPCount;
 
 uint8_t fetchingFunc(INSTRUCTION_MASKS dataMask,uint8_t buffer8Bit);
 
@@ -35,7 +36,7 @@ std::string handleCmpImmediateToAccumulator(std::array<uint8_t, 6>& buffer, std:
 
 std::string handleCmpRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream);
 
-std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, std::string& jumpString);
+std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, uint8_t jumpOpCode);
 
 
 static std::unordered_map<OP_CODE_VALUES,std::function<std::string(std::array<uint8_t, 6>&,std::ifstream&)>> opCodesToFunc = {

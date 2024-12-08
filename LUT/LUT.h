@@ -141,7 +141,7 @@ static std::unordered_map<uint8_t, std::string> jumpOpCodeToStrMap = {
     {0b01110010, "jb"},         // Jump if below (unsigned)
     {0b01110011, "jae"},        // Jump if above or equal (unsigned)
     {0b01110100, "je"},         // Jump if equal (zero)
-    {0b01110101, "jne"},        // Jump if not equal (non-zero)
+    {0b01110101, "jnz"},        // Jump if not equal (non-zero)
     {0b01110110, "jbe"},        // Jump if below or equal (unsigned)
     {0b01110111, "ja"},         // Jump if above (unsigned)
     {0b01111000, "js"},         // Jump if sign (negative)
