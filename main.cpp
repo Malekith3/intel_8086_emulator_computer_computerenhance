@@ -11,8 +11,9 @@ std::array<uint8_t,1024*1024> memory{0};
 namespace
 {
     const std::string OUTPUT_FILE_PATH = "../asm_files/output.asm";
-    const std::string INPUT_FILE_PATH = "../asm_files/listing_0052_memory_add_loop";
+    const std::string INPUT_FILE_PATH = "../asm_files/listing_0054_draw_rectangle";
     const std::string ASM_HEADER = "bits 16";
+    const std::string DUMP_FILE_PATH = "../asm_files/memory.data";
 }
 
 std::string processInstruction(std::ifstream& bytesStream)
@@ -134,8 +135,27 @@ void printRegisters()
     std::cout << outputStream.str();
 }
 
-int main()
+
+void dumpMemoryToFile(const std::string& filePath)
 {
+  std::ofstream outFile(filePath, std::ios::binary);
+  if (!outFile.is_open())
+  {
+    std::cerr << "Failed to open memory dump file for writing." << std::endl;
+    return;
+  }
+  outFile.write(reinterpret_cast<const char*>(memory.data()), memory.size());
+  outFile.close();
+}
+
+int main(int argc, char* argv[])
+{
+  bool dumpMemory = false;
+  if (argc > 1 && std::strcmp(argv[1], "-dump") == 0)
+  {
+    dumpMemory = true;
+  }
+
   std::ifstream  instructions(INPUT_FILE_PATH, std::ios::binary);
 
   if(!instructions)
@@ -161,7 +181,12 @@ int main()
   std::ostringstream hexVal;
   hexVal << "0x" << std::hex << std::setw(4) << std::setfill('0') << prevIPCount;
   std::cout << "\t" << "IP: " << hexVal.str() << "(" << prevIPCount <<")" << "\n";
-  
+
+  if (dumpMemory)
+  {
+    dumpMemoryToFile(DUMP_FILE_PATH);
+  }
+
   return 0;
 
 }

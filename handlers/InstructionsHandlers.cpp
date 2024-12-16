@@ -200,6 +200,41 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         ss << instructionString << " "
            << ((dValue == 1u) ? regMemValueString : displacementValue.str())  << ", "
            << ((dValue == 1u) ? displacementValue.str() : regMemValueString);
+
+      if(execFunc) {
+        uint16_t oldRegValue{registers[regNameToIndex[regMemValueString]]};
+
+        uint16_t dataFromMemory{};
+        if (wValue) {
+          auto *memoryPointer = calculateMemoryAddress(regMemValue, data);
+          dataFromMemory = memoryPointer[0];
+          dataFromMemory |= (memoryPointer[1] << 8);
+        } else {
+          auto *memoryPointer = calculateMemoryAddress(regMemValue, data);
+          dataFromMemory = memoryPointer[0];
+        }
+
+        uint16_t dataToSave{};
+        execFunc((dValue == 1u) ? registers[regValue] : dataToSave,
+                 (dValue == 1u) ? dataFromMemory : registers[regValue],
+                 0xFFFF);
+
+        if (dValue == 0u)
+        {
+          auto *memoryPointer = calculateMemoryAddress(regMemValue, data);
+          memoryPointer[0] = dataToSave;
+          if (wValue)
+          {
+            memoryPointer[1] = (dataToSave >> 8);
+          }
+          std::cout << ss.str() + getIPCountString(bytesStream) + "\n";
+        }
+        else
+        {
+          printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
+                                    registers[regNameToIndex[regMemValueString]], bytesStream);
+        }
+      }
         
     }
     else if(mod == 0b00)
@@ -488,26 +523,8 @@ std::string handleImmediateToMemoryBitOp(std::array<uint8_t, 6> &buffer, std::if
     if(execFunc)
     {
       uint16_t bufferValue{};
-      if(wValue)
-      {
-        execFunc(bufferValue, data, 0xFFFF);
-      }
-      else
-      {
-        auto mask = (regMemValue > 3) ? 0xFF00 : 0x00FF;
 
-        auto regData = data & mask;
-        if(regMemValue > 3)
-        {
-          regData >>= 8;
-        }
-        else
-        {
-          regData &= 0x00FF;
-        }
-
-        execFunc(bufferValue, regData, mask);
-      }
+      execFunc(bufferValue, data, 0xFFFF);
 
       auto* memAddr = calculateMemoryAddress(regMemValue, dataDisp);
       memAddr[0] = static_cast<uint8_t>(bufferValue & 0xFF);
