@@ -32,7 +32,7 @@ void signFlagTest(const uint16_t dest)
     }
 }
 
-void MoveExecute(uint16_t &dest, uint16_t data, uint16_t lowHighBitmask)
+void MoveExecute(uint16_t& dest, uint16_t data, uint16_t lowHighBitmask)
 {
     dest &= (~lowHighBitmask);
     if(lowHighBitmask == 0x00FF)

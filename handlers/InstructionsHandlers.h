@@ -15,6 +15,7 @@
 
 extern std::array<uint16_t, 8> registers;
 extern size_t prevIPCount;
+extern std::array<uint8_t,1024*1024> memory;
 
 uint8_t fetchingFunc(INSTRUCTION_MASKS dataMask,uint8_t buffer8Bit);
 
@@ -38,6 +39,8 @@ std::string handleCmpRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifst
 
 std::string handleJump(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream, uint8_t jumpOpCode);
 
+std::string handleMovImmediateToMemory(std::array<uint8_t, 6>& buffer, std::ifstream& bytesStream);
+
 
 static std::unordered_map<OP_CODE_VALUES,std::function<std::string(std::array<uint8_t, 6>&,std::ifstream&)>> opCodesToFunc = {
         {OP_CODE_VALUES::MOV_REG_MEM,                handleMovRegMemInstruction},
@@ -48,7 +51,8 @@ static std::unordered_map<OP_CODE_VALUES,std::function<std::string(std::array<ui
         {OP_CODE_VALUES::SUB_IMMEDIATE_ACCUMULATOR,  handleSubImmediateToAccumulator},
         {OP_CODE_VALUES::SUB_REG_MEM,                handleSubRegMemInstruction},
         {OP_CODE_VALUES::CMP_REG_MEM,                handleCmpRegMemInstruction},
-        {OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR,  handleCmpImmediateToAccumulator}
+        {OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR,  handleCmpImmediateToAccumulator},
+        {OP_CODE_VALUES::MOV_IMMEDIATE_TO_MEMORY,    handleMovImmediateToMemory}
 };
 
 #endif //COMPUTER_ENHANCE_FOLLOW_UP_INSTRUCTIONSHANDLERS_H

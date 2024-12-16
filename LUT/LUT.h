@@ -37,7 +37,8 @@ enum class OP_CODE_VALUES : uint8_t
     SUB_REG_MEM = 0b001010,
     SUB_IMMEDIATE_ACCUMULATOR = 0b0010110,
     CMP_REG_MEM = 0b001110,
-    CMP_IMMEDIATE_ACCUMULATOR = 0b0011110
+    CMP_IMMEDIATE_ACCUMULATOR = 0b0011110,
+    MOV_IMMEDIATE_TO_MEMORY = 0b01100011
 };
 
 static std::set<uint8_t > opcodes4Bit {
@@ -58,7 +59,8 @@ static std::set<uint8_t> opcodes6Bit {
 static std::set<uint8_t> opcodes7Bit {
         static_cast<uint8_t>(OP_CODE_VALUES::ADD_IMMEDIATE_ACCUMULATOR),
         static_cast<uint8_t>(OP_CODE_VALUES::SUB_IMMEDIATE_ACCUMULATOR),
-        static_cast<uint8_t>(OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR)
+        static_cast<uint8_t>(OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR),
+        static_cast<uint8_t>(OP_CODE_VALUES::MOV_IMMEDIATE_TO_MEMORY)
 };
 
 
@@ -125,7 +127,8 @@ inline std::string OpCodeToString(OP_CODE_VALUES opCode)
             {OP_CODE_VALUES::SUB_REG_MEM,"sub"},
             {OP_CODE_VALUES::SUB_IMMEDIATE_ACCUMULATOR, "sub"},
             {OP_CODE_VALUES::CMP_REG_MEM, "cmp"},
-            {OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR, "cmp"}
+            {OP_CODE_VALUES::CMP_IMMEDIATE_ACCUMULATOR, "cmp"},
+            {OP_CODE_VALUES::MOV_IMMEDIATE_TO_MEMORY, "mov"}
     };
     
     auto it = opCodesToString.find(opCode);

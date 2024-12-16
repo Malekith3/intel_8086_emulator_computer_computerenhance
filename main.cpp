@@ -6,11 +6,12 @@
 std::array<uint16_t, 8> registers{0};
 std::bitset<2> flags;
 size_t prevIPCount{0U};
+std::array<uint8_t,1024*1024> memory{0};
 
 namespace
 {
     const std::string OUTPUT_FILE_PATH = "../asm_files/output.asm";
-    const std::string INPUT_FILE_PATH = "../asm_files/listing_0049_conditional_jumps";
+    const std::string INPUT_FILE_PATH = "../asm_files/listing_0051_memory_mov";
     const std::string ASM_HEADER = "bits 16";
 }
 

@@ -31,6 +31,52 @@ std::map<std::string, size_t> regNameToIndex{
 
 }
 
+uint8_t* calculateMemoryAddress(uint8_t regMemValue, uint8_t displacement)
+{
+    auto memoryAddress = &memory[0];
+    if(regMemValue == 0b000)
+    {
+      auto address{registers[regNameToIndex["bx"]] + registers[regNameToIndex["si"]]};
+      memoryAddress = &(memoryAddress[address + displacement]);
+    }
+    else if(regMemValue == 0b001)
+    {
+      auto address{registers[regNameToIndex["bx"]] + registers[regNameToIndex["di"]]};
+        memoryAddress = &(memoryAddress[address + displacement]);
+    }
+    else if(regMemValue == 0b010)
+    {
+      auto address{registers[regNameToIndex["bp"]] + registers[regNameToIndex["si"]]};
+        memoryAddress = &(memoryAddress[address + displacement]);
+    }
+    else if(regMemValue == 0b011)
+    {
+      auto address{registers[regNameToIndex["bp"]] + registers[regNameToIndex["di"]]};
+        memoryAddress = &(memoryAddress[address + displacement]);
+    }
+    else if(regMemValue == 0b100)
+    {
+      auto address{registers[regNameToIndex["si"]]};
+        memoryAddress = &(memoryAddress[address + displacement]);
+    }
+    else if(regMemValue == 0b101)
+    {
+      auto address{registers[regNameToIndex["di"]]};
+        memoryAddress = &(memoryAddress[address + displacement]);
+    }
+    else if(regMemValue == 0b110)
+    {
+      auto address{registers[regNameToIndex["bp"]]};
+        memoryAddress = &(memoryAddress[address + displacement]);
+    }
+    else if(regMemValue == 0b111)
+    {
+      auto address{registers[regNameToIndex["bx"]]};
+      memoryAddress = &(memoryAddress[address + displacement]);
+    }
+  return memoryAddress;
+}
+
 uint8_t fetchingFunc(INSTRUCTION_MASKS dataMask,uint8_t buffer8Bit)
 {
     uint8_t fetchedData = buffer8Bit & static_cast<uint8_t>(dataMask);
@@ -164,15 +210,58 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
     }
     else if(mod == 0b00)
     {
-        
-        auto regMemValueString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
-        auto calculationAddress = regNamesPlus[regMemValue];
-        std::string displacementValue = "[" + calculationAddress + "]";
-        ss << instructionString << " "
-           << ((dValue == 1u) ? regMemValueString: displacementValue) << ", "
-           << ((dValue == 1u) ? displacementValue: regMemValueString) << std::endl;
-        
-        return ss.str();
+      uint16_t directAddress{};
+      if(regMemValue == 0b110)
+      {
+        bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+        bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+        directAddress = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+        uint16_t highBitDirectAddress = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+        highBitDirectAddress <<= 8;
+        directAddress ^= highBitDirectAddress;
+      }
+
+      auto regMemValueString = (wValue) ? regNamesExtendedToStr[regValue] : regNamesToStr[regValue];
+      auto calculationAddress = (regMemValue != 0b110) ? regNamesPlus[regMemValue] : std::to_string(directAddress);
+      std::string displacementValue = "[" + calculationAddress + "]";
+      ss << instructionString << " "
+         << ((dValue == 1u) ? regMemValueString: displacementValue) << ", "
+         << ((dValue == 1u) ? displacementValue: regMemValueString) << std::endl;
+
+
+      if(execFunc)
+      {
+        uint16_t oldRegValue{registers[regNameToIndex[regMemValueString]]};
+
+        uint16_t dataFromMemory{};
+        if(wValue && regMemValue == 0b110)
+        {
+          dataFromMemory = memory[directAddress];
+          dataFromMemory |= (memory[directAddress + 1] << 8);
+        }
+        else if(wValue && regMemValue != 0b110)
+        {
+          auto* memoryPointer = calculateMemoryAddress(regMemValue, 0);
+          dataFromMemory = memoryPointer[0];
+          dataFromMemory |= (memoryPointer[1] << 8);
+        }
+        else if(!wValue && regMemValue == 0b110)
+        {
+          dataFromMemory = memory[directAddress];
+        }
+        else if(!wValue && regMemValue != 0b110)
+        {
+          auto* memoryPointer = calculateMemoryAddress(regMemValue, 0);
+          dataFromMemory = memoryPointer[0];
+        }
+
+        execFunc(registers[regValue], dataFromMemory, 0xFFFF);
+
+        printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
+                                  registers[regNameToIndex[regMemValueString]], bytesStream);
+      }
+
+      return ss.str();
     }
     else if(mod == 0b10)
     {
@@ -200,9 +289,33 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         ss << instructionString << " "
            << ((dValue == 1u)? regMemValueString : displacementValue.str())  << ","
            << ((dValue == 1u) ? displacementValue.str() : regMemValueString) << std::endl;;
-        
-        
-        return ss.str();
+
+      if(execFunc)
+      {
+        uint16_t oldRegValue{registers[regNameToIndex[regMemValueString]]};
+
+        uint16_t dataFromMemory{};
+        if(wValue)
+        {
+            auto* memoryPointer = calculateMemoryAddress(regMemValue, data);
+            dataFromMemory = memoryPointer[0];
+            dataFromMemory |= (memoryPointer[1] << 8);
+
+
+        }
+        else
+        {
+          auto* memoryPointer = calculateMemoryAddress(regMemValue, data);
+          dataFromMemory = memoryPointer[0];
+        }
+
+        execFunc(registers[regValue], dataFromMemory, 0xFFFF);
+
+        printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
+                                  registers[regNameToIndex[regMemValueString]], bytesStream);
+      }
+
+      return ss.str();
     }
     
     return "";
@@ -251,6 +364,236 @@ std::string handleImmediateToRegister(std::array<uint8_t, 6> &buffer, std::ifstr
     }
     ss << std::endl;
     return ss.str();
+}
+
+std::string handleImmediateToMemoryBitOp(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream,
+                                         const std::string &instructionType,
+                                         std::function<void(uint16_t &, uint16_t, uint16_t)> execFunc = nullptr)
+{
+  // Fetching W
+    auto wValue = fetchingFunc(INSTRUCTION_MASKS::W_6BITES, buffer[0]);
+
+  //Fetching Mode
+  uint16_t mod = fetchingFunc(INSTRUCTION_MASKS::MOD, buffer[1]);
+
+  // Fetching REG_MEM
+  uint16_t regMemValue = fetchingFunc(INSTRUCTION_MASKS::REG_MEM, buffer[1]);
+
+  std::stringstream ss;
+  if(mod==0b11)
+  {
+    auto regMemValueString = (wValue) ? regNamesExtendedToStr[regMemValue] : regNamesToStr[regMemValue];
+    bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+    uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+
+    if(wValue == 1)
+    {
+      bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+      uint16_t highBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+      highBitData <<= 8;
+      data ^= highBitData;
+    }
+
+    ss << instructionType << " " << "[" + regMemValueString +"]" << "," << " " << std::to_string(static_cast<int16_t>(data));
+
+    if(execFunc)
+    {
+      uint16_t oldRegValue{registers[regNameToIndex[regMemValueString]]};
+
+      if(wValue)
+      {
+        execFunc(registers[regMemValue], data, 0xFFFF);
+      }
+      else
+      {
+        auto mask = (regMemValue > 3) ? 0xFF00 : 0x00FF;
+
+        auto  regData = data & mask;
+        if(regMemValue > 3)
+        {
+          regData >>= 8;
+        }
+        else
+        {
+          regData &= 0x00FF;
+        }
+
+        execFunc(registers[regMemValue % 4], regData, mask);
+      }
+
+      printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
+                                registers[regNameToIndex[regMemValueString]], bytesStream);
+    }
+  }
+  else if(mod==0b00 & regMemValue != 0b110)
+  {
+    bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+    uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+
+    if(wValue == 1)
+    {
+      bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+      uint16_t highBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+      highBitData <<= 8;
+      data ^= highBitData;
+    }
+    ss << instructionType << " " << "[" + regNamesPlus[regMemValue] + "]" << ", " << std::to_string(static_cast<int16_t>(data));
+    if(execFunc)
+    {
+      uint16_t bufferValue{};
+      if (wValue)
+      {
+        execFunc(bufferValue, data, 0xFFFF);
+      } else {
+        auto mask = (regMemValue > 3) ? 0xFF00 : 0x00FF;
+
+        auto regData = data & mask;
+        if (regMemValue > 3) {
+          regData >>= 8;
+        } else {
+          regData &= 0x00FF;
+        }
+
+        execFunc(bufferValue, regData, mask);
+      }
+        auto* memAddr = calculateMemoryAddress(regMemValue, 0);
+        memAddr[0] = static_cast<uint8_t>(bufferValue & 0xFF);
+        memAddr[0] = static_cast<uint8_t>((bufferValue >> 8) & 0xFF);
+        std::cout << ss.str() + getIPCountString(bytesStream) + "\n";
+    }
+  }
+  else if(mod==0b01)
+  {
+
+    bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+    uint16_t dataDisp = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+    bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+    uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+    if(wValue == 1)
+    {
+      bytesStream.read(reinterpret_cast<char*>(&buffer[4]), sizeof(buffer[4]));
+      uint16_t highBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[4]);
+      highBitData <<= 8;
+      data ^= highBitData;
+    }
+
+    auto displacement = (dataDisp != 0u) ? std::to_string(static_cast<int16_t>(dataDisp)) : "";
+    ss << instructionType << " " << regNamesPlus[regMemValue] + "+" + displacement
+       << ", " << std::to_string(static_cast<int16_t>(data));
+
+    if(execFunc)
+    {
+      uint16_t bufferValue{};
+      if(wValue)
+      {
+        execFunc(bufferValue, data, 0xFFFF);
+      }
+      else
+      {
+        auto mask = (regMemValue > 3) ? 0xFF00 : 0x00FF;
+
+        auto regData = data & mask;
+        if(regMemValue > 3)
+        {
+          regData >>= 8;
+        }
+        else
+        {
+          regData &= 0x00FF;
+        }
+
+        execFunc(bufferValue, regData, mask);
+      }
+
+      auto* memAddr = calculateMemoryAddress(regMemValue, dataDisp);
+      memAddr[0] = static_cast<uint8_t>(bufferValue & 0xFF);
+      if(wValue)
+      {
+        memAddr[1] = static_cast<uint8_t>((bufferValue >> 8) & 0xFF);
+      }
+      std::cout << ss.str() + getIPCountString(bytesStream) + "\n";
+    }
+
+    std::cout <<  ss.str() + getIPCountString(bytesStream) + "\n";
+
+  }
+  else if (mod==0b00 && regMemValue == 0b110)
+  {
+    bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+    bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+
+    uint16_t dataDisp = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+    uint16_t highBitDataDisp = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+    highBitDataDisp <<= 8;
+    dataDisp ^= highBitDataDisp;
+
+    bytesStream.read(reinterpret_cast<char*>(&buffer[4]), sizeof(buffer[4]));
+    uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[4]);
+
+    if(wValue == 1)
+    {
+      bytesStream.read(reinterpret_cast<char*>(&buffer[5]), sizeof(buffer[5]));
+      uint16_t highBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[5]);
+      highBitData <<= 8;
+      data ^= highBitData;
+    }
+    ss << instructionType << " " << std::to_string(static_cast<int16_t>(dataDisp)) << "," << " " << std::to_string(static_cast<int16_t>(data));
+    if(execFunc)
+    {
+      uint16_t bufferValue{};
+      if(wValue)
+      {
+
+        execFunc(bufferValue, data, 0xFFFF);
+      }
+      else
+      {
+        auto mask = (regMemValue > 3) ? 0xFF00 : 0x00FF;
+
+        auto  regData = data & mask;
+        if(regMemValue > 3)
+        {
+          regData >>= 8;
+        }
+        else
+        {
+          regData &= 0x00FF;
+        }
+
+        execFunc(registers[regMemValue % 4], regData, mask);
+      }
+
+      memory[dataDisp] = static_cast<uint8_t>(bufferValue & 0xFF);
+      memory[dataDisp + 1] = static_cast<uint8_t>((bufferValue >> 8) & 0xFF);
+
+      std::cout << ss.str() + getIPCountString(bytesStream) + "\n";
+    }
+  } else if(mod==0b10)
+  {
+    bytesStream.read(reinterpret_cast<char*>(&buffer[2]), sizeof(buffer[2]));
+    bytesStream.read(reinterpret_cast<char*>(&buffer[3]), sizeof(buffer[3]));
+    uint16_t dataDisp = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[2]);
+    uint16_t dataHigh = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[3]);
+    dataHigh <<= 8;
+    dataDisp ^= dataHigh;
+
+    bytesStream.read(reinterpret_cast<char*>(&buffer[4]), sizeof(buffer[4]));
+    uint16_t data = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[4]);
+    if(wValue == 1)
+    {
+      bytesStream.read(reinterpret_cast<char*>(&buffer[5]), sizeof(buffer[5]));
+      uint16_t highBitData = fetchingFunc(INSTRUCTION_MASKS::DATA, buffer[5]);
+      highBitData <<= 8;
+      data ^= highBitData;
+    }
+    auto displacement = (dataDisp != 0u) ? std::to_string(static_cast<int16_t>(dataDisp)) : "";
+    ss << instructionType << " " << regNamesPlus[regMemValue] << "+"<< displacement << "," << " " << std::to_string(static_cast<int16_t>(data));
+    std::cout << ss.str() + getIPCountString(bytesStream) + "\n";
+  }
+
+  ss << "\n";
+  return ss.str();
+
 }
 
 std::string handleImmediateToRegisterLogicOp(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream,
@@ -525,4 +868,11 @@ std::string handleMovRegMemInstruction(std::array<uint8_t, 6>& buffer, std::ifst
     bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
     auto fetchedValues = fetchingRegMemData(buffer);
     return handleRegMemModValues(fetchedValues,OpCodeToString(OP_CODE_VALUES::MOV_REG_MEM),bytesStream, buffer, MoveExecute);
+}
+
+
+std::string handleMovImmediateToMemory(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream) {
+    bytesStream.read(reinterpret_cast<char*>(&buffer[1]), sizeof(buffer[1]));
+  return handleImmediateToMemoryBitOp(buffer, bytesStream, OpCodeToString(OP_CODE_VALUES::MOV_IMMEDIATE_TO_MEMORY),
+                                     MoveExecute);
 }
