@@ -11,7 +11,7 @@ std::array<uint8_t,1024*1024> memory{0};
 namespace
 {
     const std::string OUTPUT_FILE_PATH = "../asm_files/output.asm";
-    const std::string INPUT_FILE_PATH = "../asm_files/listing_0051_memory_mov";
+    const std::string INPUT_FILE_PATH = "../asm_files/listing_0052_memory_add_loop";
     const std::string ASM_HEADER = "bits 16";
 }
 
@@ -121,11 +121,15 @@ void printRegisters()
     outputStream << "Final registers:" << "\n";
     for(const auto& reg: registers)
     {
-        std::ostringstream oss;
-        oss << "0x" << std::hex << std::setw(4) << std::setfill('0') << reg;
-        outputStream << "\t" << regNamesExtendedToStr[index] + ": " + oss.str() + "(" + std::to_string(reg) + ")" << std::endl;
+        if(reg != 0u)
+        {
+            std::ostringstream oss;
+            oss << "0x" << std::hex << std::setw(4) << std::setfill('0') << reg;
+            outputStream << "\t" << regNamesExtendedToStr[index] + ": " + oss.str() + "(" + std::to_string(reg) + ")" << "\n";
+        }
         index++;
     }
+    
     
     std::cout << outputStream.str();
 }
@@ -153,6 +157,10 @@ int main()
   }
   
   printRegisters();
+  
+  std::ostringstream hexVal;
+  hexVal << "0x" << std::hex << std::setw(4) << std::setfill('0') << prevIPCount;
+  std::cout << "\t" << "IP: " << hexVal.str() << "(" << prevIPCount <<")" << "\n";
   
   return 0;
 

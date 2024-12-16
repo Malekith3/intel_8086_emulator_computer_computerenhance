@@ -134,8 +134,6 @@ void printInstructionAndChange(const std::string &instructionStr, const std::str
         
     }
     
-    ipCountString << " IP: " << "0x" << std::hex << prevIPCount << "->" << "0x" << std::hex << bytestream.tellg();
-    
     std::cout << instructionStr + "; " + regName + ":" + oss.str() + "->" + ossNew.str() + flagsOSS.str() + getIPCountString(bytestream) + "\n";
 }
 
@@ -180,9 +178,6 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
             printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
                                       registers[regNameToIndex[regMemValueString]], bytesStream);
         }
-        
-        ss << std::endl;
-        return ss.str();
     }
     else if (mod == 0b01)
     {
@@ -204,9 +199,8 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         
         ss << instructionString << " "
            << ((dValue == 1u) ? regMemValueString : displacementValue.str())  << ", "
-           << ((dValue == 1u) ? displacementValue.str() : regMemValueString)  << std::endl;;
+           << ((dValue == 1u) ? displacementValue.str() : regMemValueString);
         
-        return ss.str();
     }
     else if(mod == 0b00)
     {
@@ -226,7 +220,7 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
       std::string displacementValue = "[" + calculationAddress + "]";
       ss << instructionString << " "
          << ((dValue == 1u) ? regMemValueString: displacementValue) << ", "
-         << ((dValue == 1u) ? displacementValue: regMemValueString) << std::endl;
+         << ((dValue == 1u) ? displacementValue: regMemValueString);
 
 
       if(execFunc)
@@ -254,14 +248,24 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
           auto* memoryPointer = calculateMemoryAddress(regMemValue, 0);
           dataFromMemory = memoryPointer[0];
         }
-
-        execFunc(registers[regValue], dataFromMemory, 0xFFFF);
-
+        
+        uint16_t dataToSave{};
+        execFunc((dValue == 1u) ? registers[regValue] : dataToSave , (dValue == 1u) ? dataFromMemory : registers[regValue]  , 0xFFFF);
+        
+        if(dValue == 0u)
+        {
+            auto* memoryPointer = calculateMemoryAddress(regMemValue, 0);
+            memoryPointer[0] = dataToSave;
+            memoryPointer[1] = dataToSave >> 8;
+            std::cout << ss.str() + getIPCountString(bytesStream) + "\n";
+            
+        }
+        else
+        {
         printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
                                   registers[regNameToIndex[regMemValueString]], bytesStream);
+        }
       }
-
-      return ss.str();
     }
     else if(mod == 0b10)
     {
@@ -288,7 +292,7 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         
         ss << instructionString << " "
            << ((dValue == 1u)? regMemValueString : displacementValue.str())  << ","
-           << ((dValue == 1u) ? displacementValue.str() : regMemValueString) << std::endl;;
+           << ((dValue == 1u) ? displacementValue.str() : regMemValueString);
 
       if(execFunc)
       {
@@ -300,8 +304,6 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
             auto* memoryPointer = calculateMemoryAddress(regMemValue, data);
             dataFromMemory = memoryPointer[0];
             dataFromMemory |= (memoryPointer[1] << 8);
-
-
         }
         else
         {
@@ -314,11 +316,10 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         printInstructionAndChange(ss.str(), regMemValueString, oldRegValue,
                                   registers[regNameToIndex[regMemValueString]], bytesStream);
       }
-
-      return ss.str();
     }
     
-    return "";
+    ss << "\n";
+    return ss.str();
 }
 
 std::string handleImmediateToRegister(std::array<uint8_t, 6> &buffer, std::ifstream &bytesStream,
@@ -513,8 +514,6 @@ std::string handleImmediateToMemoryBitOp(std::array<uint8_t, 6> &buffer, std::if
       }
       std::cout << ss.str() + getIPCountString(bytesStream) + "\n";
     }
-
-    std::cout <<  ss.str() + getIPCountString(bytesStream) + "\n";
 
   }
   else if (mod==0b00 && regMemValue == 0b110)
