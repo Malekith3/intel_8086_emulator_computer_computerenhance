@@ -256,7 +256,10 @@ std::string handleRegMemModValues(std::array<uint16_t,5> prefetchedValues, const
         {
             auto* memoryPointer = calculateMemoryAddress(regMemValue, 0);
             memoryPointer[0] = dataToSave;
-            memoryPointer[1] = dataToSave >> 8;
+            if(wValue)
+            {
+                memoryPointer[1] = (dataToSave >> 8);
+            }
             std::cout << ss.str() + getIPCountString(bytesStream) + "\n";
             
         }
