@@ -7,6 +7,7 @@ This is a homework solution for HW of the Performance-Aware Programming course, 
 This project is a partial emulator of the Intel 8086 CPU. All the code is written by me, and its aim is to learn how a CPU works.
 It is not intended to showcase best practices in coding but could be a great help for those who attempt to follow the course. 
 Also, this repo is meant to showcase what I study in my free time and serves as an opportunity to engage with others who are interested in such topics.
+
 ---
 ## Supported Instructions
 
@@ -40,4 +41,13 @@ The program produces two main outputs:
 2. **memory.data**: This file is created when the `-dump` argument is provided. It contains the saved memory of the CPU, with a size of 1024 * 1024 bytes.
 ---
 
+## How use
+To run the emulator, you need to provide the path to the binary file that contains the assembly code.
+Path to the binary in file is in main.cpp file.
+edit the following lines in main.cpp file:
+```cpp
+    const std::string OUTPUT_FILE_PATH = "../asm_files/output.asm";
+    const std::string INPUT_FILE_PATH = "../asm_files/listing_0054_draw_rectangle";
+```
+---
 Feel free to reach out if you have any questions or need further assistance!
