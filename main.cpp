@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <bitset>
+#include <cstring>
 #include "InstructionsHandlers.h"
 
 std::array<uint16_t, 8> registers{0};
@@ -151,7 +152,7 @@ void dumpMemoryToFile(const std::string& filePath)
 int main(int argc, char* argv[])
 {
   bool dumpMemory = false;
-  if (argc > 1 && std::strcmp(argv[1], "-dump") == 0)
+  if (argc > 1 && strcmp(argv[1], "-dump") == 0)
   {
     dumpMemory = true;
   }
